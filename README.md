@@ -1,124 +1,241 @@
-# SNS Workflow
+# Social Content Automation
 
-이미지에 있는 자동화 흐름을 기준으로 만든 `FastAPI + Python` 워크플로우 프로젝트입니다.
+FastAPI and Python based workflow server for turning a content idea into social-ready assets and distribution steps.
 
-기본 모드는 `dry-run/mock` 이라서 외부 API 키 없이도 전체 파이프라인을 끝까지 실행해 볼 수 있습니다.
+This project is designed for rapid experimentation with short-form social campaigns:
 
-## 포함된 단계
+- collect or auto-complete an idea brief
+- generate idea candidates and score them
+- analyze reference images and build a visual direction
+- generate video copy and caption variations
+- generate audio and video artifacts
+- publish to multiple social platforms
 
-1. 아이디어/입력 수집
-2. 참고 이미지 분석 + 이미지 프롬프트 생성 + 이미지 생성
-3. 광고용 영상 스크립트 생성
-4. 영상 생성 요청 + 결과 아티팩트 저장
-5. 여러 SNS 플랫폼으로 자동 배포
+The default mode is `dry_run=true`, so you can test the full pipeline without immediately pushing content to external platforms.
 
-## 빠른 실행
+## What It Does
 
-```bash
+The workflow is centered around `POST /workflows/run`.
+
+Main pipeline stages:
+
+1. `collect_idea`
+2. `generate_idea_candidates`
+3. `create_image`
+4. `generate_script`
+5. `generate_audio`
+6. `generate_video`
+7. `auto_post`
+
+You can also stop the pipeline earlier by setting `metadata.generation_stage`.
+
+Supported generation stages:
+
+- `ideation`: stop after idea candidate generation
+- `script`: stop after script generation
+- `video`: stop after video generation
+- `full`: generate and continue to publishing
+
+Note:
+
+- `create_image` is currently used as a visual-direction stage based on reference analysis
+- it does not mean this project is generating final image assets as a core output
+
+## Tech Stack
+
+- Python
+- FastAPI
+- Pydantic
+- Uvicorn
+- Google Gemini / Veo integration hooks
+- YouTube OAuth upload helper
+
+## Project Structure
+
+```text
+app/
+  main.py                  FastAPI entry point
+  workflow.py              end-to-end workflow orchestration
+  models.py                request/response models
+  config.py                environment-based settings
+  storage.py               run history persistence
+  services/
+    llm.py                 idea/script/caption generation
+    image_generation.py    visual prompt or image integration hooks
+    video_generation.py    audio/video generation integration
+    publishers.py          multi-platform publishing
+    youtube_publisher.py   YouTube upload support
+  static/
+    index.html             simple web UI
+
+artifacts/                 generated outputs and metadata
+data/                      run history storage
+youtube_auth.py            YouTube OAuth bootstrap helper
+```
+
+## Quick Start
+
+### 1. Create a virtual environment
+
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+### 2. Configure environment variables
+
+```powershell
 copy .env.example .env
+```
+
+At minimum, the project runs in mock or dry-run mode without filling every API key.
+
+### 3. Start the API server
+
+```powershell
 uvicorn app.main:app --reload
 ```
 
-서버 실행 후:
+Default local addresses:
 
-- `GET /`
-- `GET /health`
-- `POST /workflows/run`
-- `GET /runs`
-- `GET /runs/{run_id}`
-- `GET /docs`
+- App: `http://127.0.0.1:8000`
+- Swagger docs: `http://127.0.0.1:8000/docs`
 
-## 예시 요청
+## API Endpoints
+
+- `GET /` - static UI
+- `GET /health` - health check
+- `POST /workflows/run` - start a workflow run
+- `GET /runs` - list previous runs
+- `GET /runs/{run_id}` - fetch one run
+- `GET /docs` - interactive API docs
+
+## Example Request
 
 ```json
 {
-  "idea": "여름철 피부 관리 팁을 20대 여성 대상으로 짧고 임팩트 있게 홍보",
-  "caption_seed": "3초 안에 시선 잡는 뷰티 광고",
+  "idea": "Promote summer skincare tips for women in their 20s with a short, high-impact ad concept.",
+  "caption_seed": "A beauty hook that grabs attention within 3 seconds.",
   "reference_image_urls": [
     "https://example.com/ref-1.jpg"
   ],
   "reference_video_url": "https://example.com/ref-video.mp4",
-  "idea_candidate_count": 6,
-  "auto_select_idea": true,
   "platforms": [
     "youtube",
     "instagram",
-    "tiktok",
-    "facebook"
+    "tiktok"
   ],
-  "dry_run": true
+  "idea_candidate_count": 6,
+  "auto_select_idea": true,
+  "dry_run": true,
+  "metadata": {
+    "generation_stage": "full"
+  }
 }
 ```
 
-## 응답/저장
+## Request Model Notes
 
-- 실행 결과는 `data/runs.jsonl` 에 누적 저장됩니다.
-- 생성 산출물 메타데이터는 `artifacts/<run_id>/` 아래에 저장됩니다.
+Important request fields:
 
-## 아이디어 발상 단계
+- `idea`: base campaign or content idea
+- `caption_seed`: short hook or copy direction
+- `reference_image_urls`: inspiration or style references used to shape visual direction
+- `reference_video_url`: optional reference video
+- `platforms`: target platforms for publishing
+- `idea_candidate_count`: number of idea options to generate, from 1 to 10
+- `auto_select_idea`: automatically choose the top-ranked idea
+- `selected_idea_index`: use this when `auto_select_idea=false`
+- `dry_run`: keep publishing in simulation mode
+- `metadata.generation_stage`: stop at `ideation`, `script`, `video`, or run `full`
+- `metadata.video_file_path`: local MP4 path used when doing a real YouTube upload
 
-워크플로우는 입력 아이디어를 바로 쓰지 않고, 중간에 다음 단계를 거칩니다.
+## Output Storage
 
-1. `idea_candidate_count` 개수만큼 후보 생성
-2. 후보별 `hook`, `angle`, `target_audience`, `cta` 생성
-3. 자동 점수화 후 최상위 후보 선택
-4. 선택된 후보를 이미지 프롬프트와 영상 스크립트에 반영
+Run and artifact data are stored locally:
 
-직접 후보를 고르고 싶으면 `auto_select_idea=false` 와 `selected_idea_index` 를 함께 보내면 됩니다.
+- `data/runs.jsonl`: workflow execution history
+- `artifacts/<run_id>/`: generated metadata and media outputs
 
-## 실제 API 연동
+These paths are intentionally excluded from Git tracking in `.gitignore`.
 
-현재 서비스 클래스는 기본적으로 mock 구현입니다.
+## Environment Variables
 
-- `app/services/llm.py`
-- `app/services/image_generation.py`
-- `app/services/video_generation.py`
-- `app/services/publishers.py`
+Core app settings from `.env.example`:
 
-이 파일들에서 외부 API 호출 부분만 교체하면 동일한 워크플로우를 유지한 채 실서비스로 확장할 수 있습니다.
+```env
+APP_NAME=sns-workflow
+APP_ENV=local
+APP_HOST=127.0.0.1
+APP_PORT=8000
+WORKFLOW_STORAGE_DIR=./data
+WORKFLOW_ARTIFACT_DIR=./artifacts
+DEFAULT_PLATFORM_TARGETS=youtube,instagram,tiktok,facebook,linkedin,x,threads,bluesky,pinterest
+```
 
-## Gemini 연결
+Generation-related settings:
 
-- `LLM_PROVIDER=gemini`
-- `GEMINI_API_KEY=...`
-- `GEMINI_MODEL=gemini-2.5-flash`
-- `GEMINI_IMAGE_MODEL=gemini-2.5-flash-image`
-- `GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts`
-- `GEMINI_TTS_VOICE=Kore`
-- `GEMINI_VIDEO_MODEL=veo-3.1-generate-preview`
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_VIDEO_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
+GEMINI_TTS_VOICE=Kore
+GEMINI_TTS_LANGUAGE_CODE=ko-KR
+GEMINI_VIDEO_MODEL=veo-3.1-fast-generate-preview
+GEMINI_VIDEO_ASPECT_RATIO=9:16
+GEMINI_VIDEO_RESOLUTION=720p
+GEMINI_VIDEO_DURATION_SECONDS=8
+```
 
-현재 기준으로 아이디어 후보 생성과 스크립트 생성은 Gemini를 사용할 수 있고, 키가 없거나 호출이 실패하면 자동으로 mock 로직으로 폴백합니다.
+Platform and integration tokens:
 
-이미지 생성은 `gemini-2.5-flash-image`, 음성 생성은 `gemini-2.5-flash-preview-tts`를 사용하도록 연결되어 있습니다. 이 둘도 키가 없거나 호출이 실패하면 mock 결과로 폴백합니다.
-비디오 생성은 `veo-3.1-generate-preview`를 사용하도록 연결되어 있으며, 호출이 실패하면 mock 결과로 폴백합니다.
+```env
+GOOGLE_DRIVE_FOLDER_ID=
+GOOGLE_SHEETS_SPREADSHEET_ID=
+YOUTUBE_ACCESS_TOKEN=
+META_ACCESS_TOKEN=
+LINKEDIN_ACCESS_TOKEN=
+X_ACCESS_TOKEN=
+TIKTOK_ACCESS_TOKEN=
+```
 
-## 생성 단계
+If Gemini or publishing credentials are missing, parts of the workflow can still run using mock or fallback behavior depending on the service path.
 
-`metadata.generation_stage` 값으로 어디까지 생성할지 고를 수 있습니다.
+## YouTube Upload Setup
 
-- `script`: 스크립트까지만 생성
-- `image`: 이미지까지 생성
-- `audio`: 음성까지 생성
-- `video`: 동영상까지 생성
-- `full`: 기존 전체 워크플로우와 업로드까지 진행
+This repository includes `youtube_auth.py` for local OAuth bootstrap.
 
-## YouTube 실제 업로드
+### 1. Add OAuth client secrets
 
-YouTube OAuth를 끝내서 프로젝트 루트에 `token.json`이 있다면, `youtube` 플랫폼에 한해 실제 업로드를 시도할 수 있습니다.
+Place your Google OAuth desktop client file at:
 
-- `dry_run`은 `false`여야 합니다.
-- 현재 영상 생성 단계는 아직 mock이므로, 실제 업로드할 MP4 경로를 `metadata.video_file_path`에 넣어야 합니다.
-- 아이디어 생성, 이미지 생성, 영상 생성은 로컬 테스트용 무료 mock으로 유지됩니다.
+- `client_secrets.json`
 
-예시 요청:
+### 2. Generate `token.json`
+
+```powershell
+python youtube_auth.py
+```
+
+This opens a local OAuth flow and stores the result in `token.json`.
+
+### 3. Run a real YouTube upload
+
+To attempt a real YouTube upload:
+
+- include `"youtube"` in `platforms`
+- set `"dry_run": false`
+- provide a valid local MP4 path in `metadata.video_file_path`
+
+Example:
 
 ```json
 {
-  "idea": "여름철 피부 관리 팁을 20대 여성 대상으로 짧고 임팩트 있게 홍보",
-  "caption_seed": "3초 안에 시선 잡는 뷰티 광고",
+  "idea": "Promote summer skincare tips for women in their 20s with a short, high-impact ad concept.",
+  "caption_seed": "A beauty hook that grabs attention within 3 seconds.",
   "platforms": ["youtube"],
   "dry_run": false,
   "metadata": {
@@ -126,3 +243,17 @@ YouTube OAuth를 끝내서 프로젝트 루트에 `token.json`이 있다면, `yo
   }
 }
 ```
+
+## Development Notes
+
+- This repository is set up to be safe for local experimentation first.
+- Secrets such as `.env`, `client_secrets.json`, and `token.json` are excluded from Git.
+- Generated outputs in `artifacts/` and execution logs in `data/` are excluded from Git.
+- Several service modules are structured so real external API calls can replace mock implementations without rewriting the whole workflow.
+
+## Future Improvements
+
+- add automated tests for workflow stages
+- add background job execution for long-running generation
+- add richer retry and failure handling for external APIs
+- add scheduling and approval flows before publishing
