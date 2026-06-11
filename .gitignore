@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+.env
+token.json
+client_secrets.json
+
+artifacts/
+data/
+
+.DS_Store
+Thumbs.db

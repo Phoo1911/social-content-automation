@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNS Workflow Studio</title>
+  <style>
+    :root {
+      --bg: #f7f3ea;
+      --panel: rgba(255, 252, 246, 0.94);
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: rgba(31, 41, 55, 0.12);
+      --accent: #c2410c;
+      --accent-2: #0f766e;
+      --success: #166534;
+      --error: #b91c1c;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+      --left-panel-width: 520px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(194, 65, 12, 0.16), transparent 32%),
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.14), transparent 28%),
+        linear-gradient(180deg, #fbf8f1 0%, #f3efe5 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+
+    .hero, .grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero {
+      grid-template-columns: 1.15fr 0.85fr;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      grid-template-columns: minmax(var(--left-panel-width), 1.05fr) minmax(360px, 0.95fr);
+      align-items: start;
+    }
+
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .card { padding: 28px; }
+    .panel { padding: 22px; }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 3vw, 3.2rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+    }
+
+    .lead, .copy, .hint {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .copy {
+      margin: 0 0 18px;
+      font-size: 0.95rem;
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(31, 41, 55, 0.08);
+      background: rgba(255,255,255,0.72);
+    }
+
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .toolbar-row input[type="range"] {
+      padding: 0;
+      background: transparent;
+      border: 0;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.1);
+      color: var(--accent-2);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .form-grid, .idea-list, .run-list, .step-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .chips, .actions, .links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid rgba(31, 41, 55, 0.14);
+      border-radius: 16px;
+      padding: 13px 14px;
+      font: inherit;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 104px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 41, 55, 0.12);
+      background: rgba(255, 255, 255, 0.76);
+      font-size: 0.92rem;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .primary { background: linear-gradient(135deg, var(--accent), #ea580c); color: white; }
+    .secondary { background: white; color: var(--ink); border: 1px solid rgba(31, 41, 55, 0.12); }
+    .ghost { background: rgba(255,255,255,0.65); color: var(--muted); }
+
+    .message {
+      margin: 0 0 16px;
+      padding: 13px 15px;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .message.show { display: block; }
+    .message.success { background: rgba(22, 101, 52, 0.1); color: var(--success); }
+    .message.error { background: rgba(185, 28, 28, 0.1); color: var(--error); }
+
+    .result-block, .step, .run-item, .idea-card {
+      border: 1px solid rgba(31, 41, 55, 0.08);
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255,255,255,0.78);
+      margin-bottom: 12px;
+    }
+
+    .result-title {
+      margin: 0 0 10px;
+      font-size: 0.96rem;
+      font-weight: 700;
+    }
+
+    .idea-card.selected {
+      border-color: rgba(15, 118, 110, 0.55);
+      box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.25);
+    }
+
+    .idea-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .idea-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .idea-copy {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 12px;
+      font-size: 0.92rem;
+    }
+
+    .kv div:nth-child(odd) { color: var(--muted); }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .mono {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      font-size: 0.84rem;
+      word-break: break-all;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      border-radius: 18px;
+      background: #1f2937;
+      color: #f9fafb;
+      overflow: auto;
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(31,41,55,0.08);
+    }
+
+    .badge.completed, .badge.success { background: rgba(22,101,52,0.12); color: var(--success); }
+    .badge.failed, .badge.error { background: rgba(185,28,28,0.12); color: var(--error); }
+    .badge.running { background: rgba(194,65,12,0.12); color: var(--accent); }
+    .badge.selected { background: rgba(15,118,110,0.12); color: var(--accent-2); }
+
+    .links a {
+      color: var(--accent-2);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 980px) {
+      .hero, .grid, .two { grid-template-columns: 1fr; }
+      :root { --left-panel-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="card">
+        <div class="status-pill">One Click Ready</div>
+        <h1>SNS Workflow Studio</h1>
+        <p class="lead">입력이 비어 있어도 LLM이 먼저 시작용 아이디어와 훅을 만들고, 후보를 여러 개 뽑은 뒤 선택해서 다음 단계로 넘길 수 있는 숏폼 자동화 스튜디오입니다.</p>
+      </div>
+      <div class="card">
+        <h2>빠른 사용법</h2>
+        <p class="copy">바로 끝까지 돌리고 싶으면 원클릭 실행, 아이디어를 골라서 진행하고 싶으면 아이디어 후보 먼저 보기를 누르세요. 핵심 흐름은 텍스트 생성 후 Veo 영상 생성이며, Veo 호출이 실패하면 mock으로 폴백됩니다.</p>
+        <div class="links">
+          <a href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+          <a href="/health" target="_blank" rel="noreferrer">Health</a>
+          <a href="/runs" target="_blank" rel="noreferrer">Raw Runs</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>워크플로우 실행</h2>
+        <p class="copy">원클릭으로 바로 실행하거나, 아이디어 후보를 보고 하나를 고른 다음 스크립트와 Veo 영상 생성으로 이어갈 수 있습니다.</p>
+
+        <div class="toolbar">
+          <div class="toolbar-row">
+            <strong>작업창 너비</strong>
+            <span id="panel-width-value" class="mono">520px</span>
+          </div>
+          <input id="panel-width-slider" type="range" min="380" max="820" step="20" value="520">
+          <p class="hint">왼쪽 입력 패널 폭을 넓히거나 줄일 수 있습니다. 모바일 폭에서는 자동으로 한 칼럼으로 바뀝니다.</p>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <form id="workflow-form" class="form-grid">
+          <div class="actions">
+            <button id="one-click-btn" type="button" class="primary">원클릭 실행</button>
+            <button id="generate-ideas-btn" type="button" class="secondary">아이디어 후보 먼저 보기</button>
+            <button id="submit-btn" type="submit" class="secondary">직접 입력으로 실행</button>
+            <button type="button" class="ghost" id="fill-sample">샘플 채우기</button>
+            <button type="button" class="ghost" id="load-runs">최근 실행 불러오기</button>
+          </div>
+
+          <div>
+            <label for="idea">아이디어 입력</label>
+            <textarea id="idea" placeholder="비워두면 LLM이 먼저 시작 아이디어를 만듭니다. 예: 30대 직장인을 위한 15초 재테크 쇼츠"></textarea>
+          </div>
+
+          <div>
+            <label for="caption_seed">캡션 훅</label>
+            <input id="caption_seed" type="text" placeholder="비워두면 LLM이 함께 생성합니다. 예: 월급 들어오자마자 바로 해야 하는 한 가지">
+          </div>
+
+          <div class="two">
+            <div>
+              <label for="topic_hint">주제 힌트</label>
+              <input id="topic_hint" type="text" placeholder="예: 재테크">
+            </div>
+            <div>
+              <label for="audience_hint">타깃 힌트</label>
+              <input id="audience_hint" type="text" placeholder="예: 30대 직장인">
+            </div>
+          </div>
+
+          <div>
+            <label for="channel_hint">채널/브랜드 힌트</label>
+            <input id="channel_hint" type="text" placeholder="예: 숏폼 정보성 채널">
+          </div>
+
+          <div>
+            <label for="video_file_path">업로드할 로컬 MP4 경로</label>
+            <input id="video_file_path" type="text" placeholder="예: D:\sns\sample.mp4">
+            <p class="hint">전체 업로드에서는 생성된 mp4를 쓰거나, 여기 넣은 로컬 파일로 덮어쓸 수 있습니다.</p>
+          </div>
+
+          <div>
+            <label>생성 단계</label>
+            <div class="chips">
+              <label class="chip"><input type="radio" name="generation_stage" value="script" checked> 스크립트만 생성</label>
+              <label class="chip"><input type="radio" name="generation_stage" value="video"> Veo 영상 생성</label>
+              <label class="chip"><input type="radio" name="generation_stage" value="full"> 전체 업로드</label>
+            </div>
+          </div>
+
+          <div class="two">
+            <div>
+              <label for="idea_candidate_count">아이디어 후보 수</label>
+              <select id="idea_candidate_count">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="7">7</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <div>
+              <label for="reference_video_url">참고 영상 URL</label>
+              <input id="reference_video_url" type="text" placeholder="선택 사항">
+            </div>
+          </div>
+
+          <div>
+            <label>플랫폼</label>
+            <div class="chips">
+              <label class="chip"><input type="checkbox" name="platform" value="youtube" checked> YouTube</label>
+              <label class="chip"><input type="checkbox" name="platform" value="instagram"> Instagram</label>
+              <label class="chip"><input type="checkbox" name="platform" value="tiktok"> TikTok</label>
+              <label class="chip"><input type="checkbox" name="platform" value="facebook"> Facebook</label>
+            </div>
+          </div>
+
+          <div class="chips">
+            <label class="chip"><input id="dry_run" type="checkbox"> 업로드도 Dry Run</label>
+            <label class="chip"><input id="auto_select_idea" type="checkbox" checked> 후보 자동 선택</label>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>실행 결과</h2>
+        <p class="copy">아이디어 후보 선택, 최근 실행 결과, 원본 JSON을 여기에서 확인할 수 있습니다.</p>
+        <div id="idea-picker"></div>
+        <div id="latest-run"></div>
+        <div class="result-block">
+          <p class="result-title">최근 실행 목록</p>
+          <div id="run-list" class="run-list"></div>
+        </div>
+        <div class="result-block">
+          <p class="result-title">원본 JSON</p>
+          <pre id="raw-json">아직 실행 결과가 없습니다.</pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById("workflow-form");
+    const oneClickBtn = document.getElementById("one-click-btn");
+    const generateIdeasBtn = document.getElementById("generate-ideas-btn");
+    const submitBtn = document.getElementById("submit-btn");
+    const message = document.getElementById("message");
+    const latestRun = document.getElementById("latest-run");
+    const rawJson = document.getElementById("raw-json");
+    const runList = document.getElementById("run-list");
+    const ideaPicker = document.getElementById("idea-picker");
+    const panelWidthSlider = document.getElementById("panel-width-slider");
+    const panelWidthValue = document.getElementById("panel-width-value");
+
+    let currentIdeationRun = null;
+    let selectedIdeaIndex = null;
+
+    function showMessage(text, kind) {
+      message.textContent = text;
+      message.className = `message show ${kind}`;
+    }
+
+    function clearMessage() {
+      message.className = "message";
+      message.textContent = "";
+    }
+
+    function badgeClass(value) {
+      return `badge ${String(value || "").toLowerCase()}`;
+    }
+
+    function collectPlatforms() {
+      return Array.from(document.querySelectorAll('input[name="platform"]:checked')).map((item) => item.value);
+    }
+
+    function getGenerationStage() {
+      return document.querySelector('input[name="generation_stage"]:checked')?.value || "script";
+    }
+
+    function setButtonLoading(loading) {
+      oneClickBtn.disabled = loading;
+      generateIdeasBtn.disabled = loading;
+      submitBtn.disabled = loading;
+      oneClickBtn.textContent = loading ? "실행 중..." : "원클릭 실행";
+      generateIdeasBtn.textContent = loading ? "후보 생성 중..." : "아이디어 후보 먼저 보기";
+      submitBtn.textContent = loading ? "실행 중..." : "직접 입력으로 실행";
+    }
+
+    function clearIdeaSelection() {
+      currentIdeationRun = null;
+      selectedIdeaIndex = null;
+      ideaPicker.innerHTML = "";
+    }
+
+    function applyPanelWidth(width) {
+      document.documentElement.style.setProperty("--left-panel-width", `${width}px`);
+      panelWidthValue.textContent = `${width}px`;
+      localStorage.setItem("sns-left-panel-width", String(width));
+    }
+
+    function getPayload() {
+      return {
+        idea: document.getElementById("idea").value.trim(),
+        caption_seed: document.getElementById("caption_seed").value.trim() || null,
+        reference_image_urls: [],
+        reference_video_url: document.getElementById("reference_video_url").value.trim() || null,
+        platforms: collectPlatforms(),
+        idea_candidate_count: Number(document.getElementById("idea_candidate_count").value),
+        selected_idea_index: null,
+        auto_select_idea: document.getElementById("auto_select_idea").checked,
+        dry_run: document.getElementById("dry_run").checked,
+        metadata: {
+          video_file_path: document.getElementById("video_file_path").value.trim() || null,
+          generation_stage: getGenerationStage(),
+          topic_hint: document.getElementById("topic_hint").value.trim() || null,
+          audience_hint: document.getElementById("audience_hint").value.trim() || null,
+          channel_hint: document.getElementById("channel_hint").value.trim() || null
+        }
+      };
+    }
+
+    async function submitWorkflow(payload, successText) {
+      setButtonLoading(true);
+      try {
+        const response = await fetch("/workflows/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          const detail = data.detail ? JSON.stringify(data.detail) : "워크플로우 실행에 실패했습니다.";
+          throw new Error(detail);
+        }
+        renderRun(data.run);
+        showMessage(successText, "success");
+        await loadRuns();
+        return data.run;
+      } catch (error) {
+        showMessage(error.message || "알 수 없는 오류가 발생했습니다.", "error");
+        throw error;
+      } finally {
+        setButtonLoading(false);
+      }
+    }
+
+    function renderPublishResults(publishResults) {
+      if (!publishResults || !publishResults.length) {
+        return `<div class="result-block"><div class="kv"><div>게시 결과</div><div>아직 없음</div></div></div>`;
+      }
+      return publishResults.map((item) => `
+        <div class="result-block">
+          <div class="row">
+            <p class="result-title">${item.platform}</p>
+            <span class="${badgeClass(item.success ? "success" : "error")}">${item.success ? "success" : "failed"}</span>
+          </div>
+          <div class="kv">
+            <div>External ID</div>
+            <div class="mono">${item.external_id || "-"}</div>
+            <div>Link</div>
+            <div>${item.permalink ? `<a href="${item.permalink}" target="_blank" rel="noreferrer">${item.permalink}</a>` : "-"}</div>
+            <div>Error</div>
+            <div>${item.error || "-"}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderSteps(steps) {
+      const visibleSteps = (steps || []).filter((step) => step.status !== "pending");
+      if (!visibleSteps.length) return "";
+      return `
+        <div class="result-block">
+          <p class="result-title">단계 진행</p>
+          <div class="step-list">
+            ${visibleSteps.map((step) => `
+              <div class="step">
+                <div class="row">
+                  <strong>${step.step}</strong>
+                  <span class="${badgeClass(step.status)}">${step.status}</span>
+                </div>
+                ${step.error ? `<div class="hint" style="color: var(--error); margin-top: 8px;">${step.error}</div>` : ""}
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderIdeaPicker(run) {
+      const candidates = run?.outputs?.ideation?.ranked_candidates || [];
+      if (!candidates.length) {
+        ideaPicker.innerHTML = "";
+        return;
+      }
+
+      currentIdeationRun = run;
+      selectedIdeaIndex = run.outputs?.ideation?.selected_candidate?.index ?? candidates[0].index;
+
+      ideaPicker.innerHTML = `
+        <div class="result-block">
+          <div class="row">
+            <p class="result-title">아이디어 후보 선택</p>
+            <span class="badge selected">choose one</span>
+          </div>
+          <p class="copy">후보를 하나 고른 뒤, 현재 선택한 생성 단계로 계속 진행할 수 있습니다.</p>
+          <div class="idea-list">
+            ${candidates.map((candidate) => `
+              <div class="idea-card ${candidate.index === selectedIdeaIndex ? "selected" : ""}" data-idea-index="${candidate.index}">
+                <div class="idea-head">
+                  <p class="idea-title">${candidate.title || `candidate ${candidate.index + 1}`}</p>
+                  <span class="${badgeClass(candidate.index === selectedIdeaIndex ? "selected" : "completed")}">score ${candidate.score ?? "-"}</span>
+                </div>
+                <p class="idea-copy">${candidate.concept_summary || ""}</p>
+                <div class="kv">
+                  <div>Hook</div>
+                  <div>${candidate.hook || "-"}</div>
+                  <div>Angle</div>
+                  <div>${candidate.angle || "-"}</div>
+                  <div>Audience</div>
+                  <div>${candidate.target_audience || "-"}</div>
+                  <div>CTA</div>
+                  <div>${candidate.cta || "-"}</div>
+                </div>
+                <div class="actions" style="margin-top: 12px;">
+                  <button type="button" class="secondary" onclick="selectIdeaCandidate(${candidate.index})">이 후보 선택</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          <div class="actions">
+            <button type="button" class="primary" onclick="continueWithSelectedIdea()">선택한 후보로 계속 생성</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRun(run) {
+      if (!run) {
+        latestRun.innerHTML = `<div class="result-block"><div class="kv"><div>상태</div><div>표시할 실행 결과가 없습니다.</div></div></div>`;
+        rawJson.textContent = "아직 실행 결과가 없습니다.";
+        ideaPicker.innerHTML = "";
+        return;
+      }
+
+      const videoResult = run.outputs?.video?.video_result;
+      const collected = run.outputs?.collected || {};
+
+      renderIdeaPicker(run);
+
+      latestRun.innerHTML = `
+        <div class="result-block">
+          <div class="row">
+            <p class="result-title">최근 실행</p>
+            <span class="${badgeClass(run.status)}">${run.status}</span>
+          </div>
+          <div class="kv">
+            <div>Run ID</div>
+            <div class="mono">${run.run_id}</div>
+            <div>Idea</div>
+            <div>${collected.idea || run.request.idea || "-"}</div>
+            <div>Caption Seed</div>
+            <div>${collected.caption_seed || run.request.caption_seed || "-"}</div>
+            <div>Idea Source</div>
+            <div>${collected.idea_source || "-"}</div>
+            <div>Generation Stage</div>
+            <div>${run.request.metadata?.generation_stage || "full"}</div>
+            <div>Dry Run</div>
+            <div>${String(run.request.dry_run)}</div>
+            <div>Error</div>
+            <div>${run.error || "-"}</div>
+          </div>
+        </div>
+        ${videoResult ? `
+        <div class="result-block">
+          <p class="result-title">동영상 결과</p>
+          <div class="kv">
+            <div>Provider</div>
+            <div>${videoResult.provider || "-"}</div>
+            <div>Status</div>
+            <div>${videoResult.status || "-"}</div>
+            <div>Transport</div>
+            <div>${videoResult.transport || "-"}</div>
+            <div>Artifact</div>
+            <div class="mono">${videoResult.artifact_path || videoResult.local_video_path || "-"}</div>
+            <div>Audio Note</div>
+            <div class="mono">${videoResult.audio_note || "-"}</div>
+            <div>Fallback</div>
+            <div>${videoResult.fallback_reason || "-"}</div>
+            <div>Warning</div>
+            <div class="mono">${videoResult.warning || "-"}</div>
+          </div>
+        </div>` : ""}
+        ${renderPublishResults(run.publish_results)}
+        ${renderSteps(run.steps)}
+      `;
+
+      rawJson.textContent = JSON.stringify(run, null, 2);
+    }
+
+    function renderRunList(runs) {
+      if (!runs || !runs.length) {
+        runList.innerHTML = `<div class="run-item">아직 실행 기록이 없습니다.</div>`;
+        return;
+      }
+      runList.innerHTML = runs.slice(0, 5).map((run) => `
+        <div class="run-item">
+          <div class="row">
+            <strong>${run.outputs?.collected?.idea || run.request.idea || "(자동 생성)"}</strong>
+            <span class="${badgeClass(run.status)}">${run.status}</span>
+          </div>
+          <div class="hint mono">${run.run_id}</div>
+          <div class="hint">플랫폼: ${(run.request.platforms || []).join(", ") || "default"}</div>
+        </div>
+      `).join("");
+    }
+
+    async function loadRuns() {
+      const response = await fetch("/runs");
+      if (!response.ok) throw new Error("최근 실행 목록을 불러오지 못했습니다.");
+      const data = await response.json();
+      renderRunList(data.runs);
+      if (data.runs.length) {
+        renderRun(data.runs[0]);
+      } else {
+        renderRun(null);
+      }
+    }
+
+    function normalizeOneClickPayload() {
+      const payload = getPayload();
+      payload.idea = "";
+      payload.caption_seed = null;
+      if (!payload.metadata.topic_hint) payload.metadata.topic_hint = "실생활에 바로 쓰는 홍보형 숏폼";
+      if (!payload.metadata.audience_hint) payload.metadata.audience_hint = "한국어 SNS 사용자";
+      if (!payload.metadata.channel_hint) payload.metadata.channel_hint = "원클릭 자동 생성 채널";
+      if (!payload.platforms.length) payload.platforms = ["youtube"];
+      return payload;
+    }
+
+    window.selectIdeaCandidate = function(index) {
+      selectedIdeaIndex = index;
+      document.querySelectorAll("[data-idea-index]").forEach((card) => {
+        card.classList.toggle("selected", Number(card.dataset.ideaIndex) === index);
+      });
+    };
+
+    window.continueWithSelectedIdea = async function() {
+      clearMessage();
+      if (!currentIdeationRun || selectedIdeaIndex === null) {
+        showMessage("먼저 아이디어 후보를 생성하고 하나를 선택해 주세요.", "error");
+        return;
+      }
+      const payload = getPayload();
+      payload.idea = currentIdeationRun.outputs?.collected?.idea || payload.idea;
+      payload.caption_seed = currentIdeationRun.outputs?.collected?.caption_seed || payload.caption_seed;
+      payload.selected_idea_index = selectedIdeaIndex;
+      payload.auto_select_idea = false;
+      if (!payload.platforms.length) payload.platforms = ["youtube"];
+      await submitWorkflow(payload, "선택한 아이디어로 다음 단계 생성이 완료되었습니다.");
+    };
+
+    document.getElementById("fill-sample").addEventListener("click", () => {
+      document.getElementById("idea").value = "30대 직장인을 위한 15초 재테크 쇼츠";
+      document.getElementById("caption_seed").value = "월급 들어오자마자 바로 해야 하는 한 가지";
+      document.getElementById("topic_hint").value = "재테크";
+      document.getElementById("audience_hint").value = "30대 직장인";
+      document.getElementById("channel_hint").value = "숏폼 정보성 채널";
+      document.getElementById("video_file_path").value = "D:\\sns\\sample.mp4";
+      document.getElementById("reference_video_url").value = "";
+      document.getElementById("idea_candidate_count").value = "5";
+      document.getElementById("auto_select_idea").checked = true;
+      document.getElementById("dry_run").checked = false;
+      document.querySelector('input[name="generation_stage"][value="video"]').checked = true;
+      clearIdeaSelection();
+      clearMessage();
+    });
+
+    document.getElementById("load-runs").addEventListener("click", async () => {
+      clearMessage();
+      try {
+        await loadRuns();
+        showMessage("최근 실행 기록을 불러왔습니다.", "success");
+      } catch (error) {
+        showMessage(error.message, "error");
+      }
+    });
+
+    oneClickBtn.addEventListener("click", async () => {
+      clearMessage();
+      clearIdeaSelection();
+      const payload = normalizeOneClickPayload();
+      await submitWorkflow(payload, "원클릭 워크플로우 실행이 완료되었습니다.");
+    });
+
+    generateIdeasBtn.addEventListener("click", async () => {
+      clearMessage();
+      clearIdeaSelection();
+      const payload = getPayload();
+      payload.selected_idea_index = null;
+      payload.auto_select_idea = true;
+      payload.metadata.generation_stage = "ideation";
+      if (!payload.platforms.length) payload.platforms = ["youtube"];
+      await submitWorkflow(payload, "아이디어 후보를 생성했습니다. 하나를 선택해 다음 단계로 진행하세요.");
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearMessage();
+      const payload = getPayload();
+      if (!payload.platforms.length) {
+        showMessage("플랫폼을 하나 이상 선택해 주세요.", "error");
+        return;
+      }
+      if (selectedIdeaIndex !== null && currentIdeationRun) {
+        payload.selected_idea_index = selectedIdeaIndex;
+        payload.auto_select_idea = false;
+        payload.idea = currentIdeationRun.outputs?.collected?.idea || payload.idea;
+        payload.caption_seed = currentIdeationRun.outputs?.collected?.caption_seed || payload.caption_seed;
+      }
+      await submitWorkflow(payload, "워크플로우 실행이 완료되었습니다.");
+    });
+
+    panelWidthSlider.addEventListener("input", (event) => {
+      applyPanelWidth(event.target.value);
+    });
+
+    const savedPanelWidth = localStorage.getItem("sns-left-panel-width");
+    if (savedPanelWidth) {
+      panelWidthSlider.value = savedPanelWidth;
+      applyPanelWidth(savedPanelWidth);
+    } else {
+      applyPanelWidth(panelWidthSlider.value);
+    }
+
+    loadRuns().catch(() => {
+      renderRun(null);
+      renderRunList([]);
+    });
+  </script>
+</body>
+</html>
